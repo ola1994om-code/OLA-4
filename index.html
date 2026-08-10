@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>متجر OLA للمواقع الألكترونية</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg: #f8f9fa; --bg2: #ffffff; --card: #ffffff; --ink: #202124; --muted: #5f6368;
+    --brand: #0a2e6d; --brand-hover: #07224e; --line: #e8eaed; --star: #fbbc04; --ok: #22c55e; --danger: #ef4444;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui, -apple-system, sans-serif; background:var(--bg); color:var(--ink); min-height: 100vh; padding-bottom: 70px;}
+  
+  /* أرقام إنجليزية إجبارية */
+  .en-num { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important; direction: ltr; display: inline-block;}
+
+  /* الشريط العلوي مع الشعار بالمنتصف */
+  .top-bar { background: var(--brand); padding: 15px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; position: sticky; top: 0; z-index: 10; color: #fff; }
+  .top-bar-logo-img { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; border: 2px solid #d4af37; box-shadow: 0 2px 8px rgba(0,0,0,0.3); background: #fff;}
+  .top-bar-title { font-size: 18px; font-weight: bold; margin: 0; letter-spacing: 0.5px;}
+
+  /* شريط التنقل السفلي */
+  .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; border-top: 1px solid var(--line); display: flex; z-index: 90; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+  .nav-item { flex: 1; padding: 15px 0; text-align: center; color: var(--muted); font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; border-bottom: 3px solid transparent;}
+  .nav-item.active { color: var(--brand); border-bottom: 3px solid var(--brand); background: #f8fbff;}
+
+  .wrap{max-width:1000px;margin:20px auto;padding:12px}
+  
+  .search-box { margin-bottom: 20px; position: relative;}
+  .search-box input { width: 100%; padding: 16px 45px 16px 20px; border-radius: 25px; border: 1px solid var(--line); font-size: 16px; background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.05); outline: none; transition: 0.2s; font-family: inherit;}
+  .search-box input:focus { border-color: var(--brand); box-shadow: 0 4px 15px rgba(10, 46, 109, 0.15); }
+  .search-icon { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); font-size: 18px; color: var(--muted); pointer-events: none;}
+
+  .category-nav { display: flex; gap: 10px; overflow-x: auto; padding: 5px 0 15px 0; margin-bottom: 15px; -webkit-overflow-scrolling: touch;}
+  .category-nav::-webkit-scrollbar { display: none; }
+  .cat-btn { background: #fff; border: 1px solid var(--line); color: var(--ink); padding: 10px 22px; border-radius: 25px; cursor: pointer; white-space: nowrap; font-size: 15px; font-weight: 500; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.02);}
+  .cat-btn.active { background: var(--brand); color: #fff; border-color: var(--brand); font-weight: bold; }
+
+  .hidden{display:none !important;}
+  
+  .site-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+  .site-item { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;}
+  .site-item:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.08); }
+  
+  .site-header { display: flex; gap: 16px; align-items: center; }
+  .site-icon { width: 75px; height: 75px; border-radius: 16px; object-fit: cover; background: var(--bg2); border: 1px solid var(--line); flex-shrink: 0;}
+  .site-info { flex: 1; overflow: hidden; }
+  .site-title { font-size: 18px; font-weight: bold; margin: 0 0 6px 0; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; color: var(--ink);}
+  .site-dev { font-size: 13px; color: var(--brand); margin-bottom: 6px; font-weight:bold; cursor: pointer; text-decoration: underline; text-decoration-color: transparent; transition: 0.2s;}
+  .site-dev:hover { text-decoration-color: var(--brand); }
+  
+  .site-stats-row { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); font-weight: bold;}
+  .stat-item { display: flex; align-items: center; gap: 4px; }
+  .stat-divider { width: 1px; height: 12px; background: var(--line); }
+  
+  button.visit-btn {width:100%; padding:12px; border-radius:10px; border:none; background:var(--brand); color:#fff; font-weight:bold; cursor:pointer; font-size:15px; margin-top:5px; transition: 0.2s;}
+  button.visit-btn:active { transform: scale(0.98); }
+  button.ghost-btn { background: transparent; border: 1px solid var(--brand); color: var(--brand); width:100%; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:15px;}
+  button.danger-btn { background: transparent; border: 1px solid var(--danger); color: var(--danger); width:100%; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:15px; margin-top: 10px;}
+
+  .url-box-card { display: flex; align-items: center; justify-content: space-between; background: #f1f3f4; border: 1px dashed #c7dbff; padding: 8px 12px; border-radius: 8px; direction: ltr; margin-top: 5px; }
+  .url-text-small { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; margin-right: 10px; text-align: left; font-family: monospace;}
+  .url-copy-btn-small { background: #d4af37; color: #07224e; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold;}
+  
+  /* النوافذ المنبثقة (Modals) */
+  .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 100; display: flex; justify-content: center; align-items: flex-end; backdrop-filter: blur(4px); }
+  @media (min-width: 600px) { .modal-overlay { align-items: center; } }
+  .modal-content { background: #fff; width: 100%; max-width: 650px; max-height: 90vh; border-radius: 20px 20px 0 0; padding: 30px; overflow-y: auto; position: relative; animation: slideUp 0.3s ease-out; }
+  @media (min-width: 600px) { .modal-content { border-radius: 20px; } }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .close-btn { position: absolute; top: 15px; left: 15px; background: var(--bg); border: 1px solid var(--line); width: 35px; height: 35px; border-radius: 50%; font-size: 18px; cursor: pointer; color: var(--muted); display:flex; justify-content:center; align-items:center;}
+  
+  /* معلومات الموقع الإضافية */
+  .site-meta-box { background: #f8fbff; border: 1px solid #c7dbff; border-radius: 12px; padding: 15px; margin: 15px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; color: var(--ink); }
+  .meta-label { color: var(--muted); font-size: 11px; display: block; margin-bottom: 2px;}
+  .meta-val { font-weight: bold; font-family: monospace; font-size: 14px;}
+  
+  .modal-desc { margin: 15px 0; color: var(--ink); font-size: 15px; line-height: 1.7; padding: 20px; background: var(--bg); border-radius: 12px; border: 1px solid var(--line); }
+  
+  /* التعليقات */
+  .reviews-section { margin-top: 25px; border-top: 1px solid var(--line); padding-top: 25px; }
+  .review-item { margin-bottom: 15px; border-bottom: 1px solid var(--bg); padding-bottom: 15px; }
+  .review-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;}
+  .review-user-info { display: flex; flex-direction: column; gap: 6px;}
+  .review-user-top { display: flex; align-items: center; gap: 10px; }
+  .review-avatar { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 1px solid var(--line); background: #eee;}
+  .review-name { font-weight: bold; font-size: 14px; color: var(--brand); }
+  .review-ola { font-size: 12px; font-family: monospace; background: #e8f0fe; color: var(--brand); padding: 3px 8px; border-radius: 6px; display: inline-block; width: fit-content; border: 1px solid #c7dbff;}
+  .review-text { font-size: 14px; color: var(--ink); margin-top: 8px; line-height: 1.5;}
+  
+  /* تنسيق رد المطور الأنيق */
+  .dev-reply-container { background: rgba(10, 46, 109, 0.04); border-right: 3px solid var(--brand); padding: 10px 15px; margin-top: 12px; border-radius: 8px; }
+  .dev-reply-title { font-size: 12px; font-weight: bold; color: var(--brand); margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
+  .dev-reply-text { font-size: 13px; color: var(--ink); line-height: 1.6; }
+
+  .add-review-box { background: var(--bg); padding: 20px; border-radius: 16px; margin-top: 25px; border: 1px solid var(--line); }
+  input, textarea, select { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid var(--line); margin-bottom: 15px; font-family: inherit; font-size: 15px; background: #fff;}
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--brand); }
+  
+  /* حسابي */
+  .profile-card { background: #fff; border-radius: 16px; padding: 30px 20px; text-align: center; border: 1px solid var(--line); box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 20px;}
+  .profile-avatar-container { position: relative; width: 120px; height: 120px; margin: 0 auto 15px auto; }
+  .profile-avatar { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 3px solid var(--brand); background: var(--bg); }
+  .edit-avatar-btn { position: absolute; bottom: 0; right: 0; background: var(--brand); color: #fff; width: 35px; height: 35px; border-radius: 50%; border: none; cursor: pointer; font-size: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center;}
+  
+  .dev-social-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+  .social-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 13px; color: #fff; transition: 0.2s; }
+  .social-btn:hover { opacity: 0.9; }
+  .mini-apps-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 20px; text-align: right;}
+  .mini-app-card { display: flex; align-items: center; gap: 12px; background: var(--bg); padding: 12px; border-radius: 12px; border: 1px solid var(--line); cursor: pointer; transition: 0.2s;}
+  .mini-app-card:hover { border-color: var(--brand); background: #f8fbff; }
+  .mini-app-icon { width: 50px; height: 50px; border-radius: 10px; object-fit: cover; }
+  
+  /* شبكة التسجيل */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: right; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+    <img src="https://i.ibb.co/7N40FyX0/1002053950.jpg" alt="OLA Logo" class="top-bar-logo-img">
+    <h1 class="top-bar-title">متجر المواقع الألكترونية</h1>
+</div>
+
+<!-- شريط التنقل السفلي -->
+<div class="bottom-nav">
+    <div class="nav-item active" id="tab-store" onclick="switchView('store')">🛒 المتجر</div>
+    <div class="nav-item" id="tab-account" onclick="switchView('account')">👤 حسابي</div>
+</div>
+
+<!-- قسم المتجر -->
+<div id="view-store" class="wrap">
+  <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-input" placeholder="ابحث عن اسم الموقع، المطور..." oninput="handleSearch()">
+  </div>
+
+  <div class="category-nav" id="cat-nav">
+     <button class="cat-btn active" id="btn-cat-all" onclick="filterSites('الكل', this)">الكل</button>
+     <button class="cat-btn" onclick="filterSites('متاجر الكترونية وتسوق', this)">متاجر إلكترونية وتسوّق</button>
+     <button class="cat-btn" onclick="filterSites('مطاعم ومقاهي', this)">مطاعم ومقاهي</button>
+     <button class="cat-btn" onclick="filterSites('عقارات وخدمات منزلية', this)">عقارات وخدمات منزلية</button>
+     <button class="cat-btn" onclick="filterSites('أخبار ومقالات', this)">أخبار ومقالات</button>
+     <button class="cat-btn" onclick="filterSites('تعليم ودورات', this)">تعليم ودورات</button>
+     <button class="cat-btn" onclick="filterSites('صحة وطب وصيدليات', this)">صحة وطب وصيدليات</button>
+     <button class="cat-btn" onclick="filterSites('تقنية وبرمجيات', this)">تقنية وبرمجيات</button>
+     <button class="cat-btn" onclick="filterSites('العاب وترفيه', this)">ألعاب وترفيه</button>
+     <button class="cat-btn" onclick="filterSites('رياضة ولياقة بدنية', this)">رياضة ولياقة بدنية</button>
+     <button class="cat-btn" onclick="filterSites('سفر وسياحة', this)">سفر وسياحة</button>
+     <button class="cat-btn" onclick="filterSites('سيارات ومركبات', this)">سيارات ومركبات</button>
+     <button class="cat-btn" onclick="filterSites('مال وأعمال', this)">مال وأعمال</button>
+     <button class="cat-btn" onclick="filterSites('فن وتصميم', this)">فن وتصميم</button>
+     <button class="cat-btn" onclick="filterSites('ادوات وخدمات عامة', this)">أدوات وخدمات عامة</button>
+     <button class="cat-btn" onclick="filterSites('مدونات شخصية', this)">مدونات شخصية</button>
+     <button class="cat-btn" onclick="filterSites('اخرى', this)">أخرى</button>
+  </div>
+
+  <div id="loading-msg" style="text-align:center; padding:40px; color:var(--muted);">⏳ جارٍ تحميل المواقع...</div>
+  <div id="sites-container" class="site-grid hidden"></div>
+</div>
+
+<!-- قسم حسابي المتكامل -->
+<div id="view-account" class="wrap hidden">
+    <!-- واجهة تسجيل الدخول -->
+    <div id="acc-unauth" class="profile-card hidden">
+        <h2 style="color:var(--brand); margin-top:0;">تسجيل الدخول</h2>
+        <p style="color:var(--muted); font-size:14px; margin-bottom:25px;">قم بتسجيل الدخول بحساب OLA الخاص بك لإدارة ملفك والتعليق في المتجر.</p>
+        
+        <input type="text" id="login-ola" placeholder="معرف OLA الخاص بك (مثال: OLA 123456789-0)" dir="ltr" style="text-align:center;">
+        <input type="password" id="login-pass" placeholder="كلمة المرور" style="text-align:center;">
+        
+        <button class="visit-btn" onclick="loginAccount()">تسجيل الدخول</button>
+        <button class="ghost-btn" style="margin-top:10px;" onclick="showRegisterForm()">إنشاء حساب جديد</button>
+        <div id="login-status" style="margin-top:15px; font-weight:bold; font-size:14px;"></div>
+    </div>
+    
+    <!-- واجهة إنشاء الحساب -->
+    <div id="acc-register" class="profile-card hidden">
+        <h2 style="color:var(--brand); margin-top:0;">إنشاء حساب OLA جديد</h2>
+        <div class="grid2">
+            <input type="text" id="reg-name" placeholder="الاسم الكامل">
+            <input type="text" id="reg-dob" placeholder="تاريخ الميلاد (مثال 1/1/2000)">
+            <input type="text" id="reg-country" placeholder="البلد">
+            <input type="text" id="reg-city" placeholder="المدينة">
+            <input type="text" id="reg-job" placeholder="المهنة">
+            <select id="reg-gender" style="padding:14px;">
+                <option value="">اختر الجنس</option>
+                <option value="male">ذكر</option>
+                <option value="female">أنثى</option>
+            </select>
+            <input type="password" id="reg-pass" placeholder="قم بإنشاء كلمة سر قوية">
+            <input type="password" id="reg-pass-conf" placeholder="تأكيد كلمة السر">
+        </div>
+        
+        <div style="background:rgba(0,0,0,0.03); padding:15px; border-radius:12px; margin-top:15px; border:1px solid var(--line);">
+            <h4 style="margin:0 0 8px 0; color:var(--brand);">سؤال الأمان الإلزامي</h4>
+            <div style="color:var(--muted); font-size:12px; margin-bottom:8px;">سيفيدك هذا السؤال في استعادة الحساب لاحقاً.</div>
+            <div style="font-weight:bold; margin-bottom:8px; color:var(--ink);" id="reg-sec-q">جاري توليد سؤال أمان...</div>
+            <input type="text" id="reg-sec-a" placeholder="أدخل إجابتك هنا بوضوح">
+        </div>
+        
+        <div style="color:var(--muted); font-size:12px; margin-top:10px;">جميع الحسابات الجديدة تتضمن فترة مجانية لمدة <b class="en-num">100</b> عام.</div>
+        
+        <button class="visit-btn" onclick="registerAccount()" style="margin-top:15px;">إنشاء الحساب الآن</button>
+        <button class="danger-btn" onclick="cancelRegister()">إلغاء والعودة</button>
+        <div id="reg-status" style="margin-top:15px; font-weight:bold; font-size:14px;"></div>
+    </div>
+    
+    <!-- واجهة إدارة الحساب -->
+    <div id="acc-auth" class="profile-card hidden">
+        <div class="profile-avatar-container">
+            <img id="my-avatar" src="https://via.placeholder.com/150" class="profile-avatar">
+            <button class="edit-avatar-btn" onclick="$('avatar-upload').click()">📷</button>
+            <input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="uploadMyAvatar(this)">
+        </div>
+        <div id="upload-status" style="font-size:12px; color:var(--brand); margin-bottom:10px; font-weight:bold;"></div>
+        
+        <h2 id="my-name-display" style="margin: 0 0 5px 0; color: var(--ink);"></h2>
+        <div class="review-ola en-num" style="margin-bottom: 20px;" id="my-ola-display"></div>
+        
+        <div style="background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 15px; text-align: right; margin-bottom: 25px;">
+            <span style="color: var(--muted); font-size: 13px;">الرصيد الحالي:</span>
+            <div style="color: var(--ok); font-size: 26px; font-weight: bold; font-family: monospace;" class="en-num" id="my-balance">0 OLA</div>
+        </div>
+
+        <div style="text-align: right; margin-bottom: 20px; padding-top: 15px; border-top: 1px solid var(--line);">
+            <h3 style="margin-top:0; color:var(--brand); font-size:16px;">تحديث بيانات الحساب</h3>
+            <label style="font-size:13px; color:var(--muted); font-weight:bold; margin-bottom:5px; display:block;">الاسم الكامل</label>
+            <input type="text" id="edit-name" placeholder="اسمك الكامل">
+            
+            <label style="font-size:13px; color:var(--muted); font-weight:bold; margin-bottom:5px; display:block;">كلمة المرور الجديدة (اختياري)</label>
+            <input type="text" id="edit-pass" placeholder="اتركه فارغاً إذا لا تريد تغييره">
+            
+            <button class="ghost-btn" onclick="saveProfileChanges()">حفظ التعديلات 💾</button>
+            <div id="edit-status" style="text-align:center; margin-top:10px; font-weight:bold; font-size:14px;"></div>
+        </div>
+
+        <button class="danger-btn" onclick="logoutAccount()">تسجيل الخروج / تبديل الحساب</button>
+    </div>
+</div>
+
+<!-- نافذة الموقع -->
+<div id="site-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <button class="close-btn" onclick="closeModal('site-modal')">✕</button>
+        
+        <div class="site-header" style="margin-bottom: 15px;">
+            <img id="modal-icon" src="" class="site-icon">
+            <div class="site-info">
+                <h2 id="modal-title" style="margin: 0 0 8px 0; font-size: 24px;"></h2>
+                <div style="color: var(--muted); font-size:14px; margin-bottom:12px;">
+                    المطور: <span id="modal-dev" class="site-dev" onclick="openDevProfile()"></span>
+                </div>
+                <div class="site-stats-row">
+                    <div class="stat-item"><span class="en-num" id="modal-rating">0.0</span> <span style="color:var(--star)">★</span></div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item en-num" id="modal-visits">0</div>
+                </div>
+            </div>
+        </div>
+        
+        <button id="modal-visit-btn" class="visit-btn" style="padding: 16px; font-size: 18px;">🌐 زيارة الموقع</button>
+        
+        <div class="site-meta-box">
+            <div>
+                <span class="meta-label">الرقم التسلسلي</span>
+                <span class="meta-val en-num" id="meta-serial"></span>
+            </div>
+            <div>
+                <span class="meta-label">حالة الاشتراك</span>
+                <span class="meta-val" id="meta-status"></span>
+            </div>
+            <div>
+                <span class="meta-label">تاريخ الإصدار</span>
+                <span class="meta-val en-num" id="meta-created"></span>
+            </div>
+            <div>
+                <span class="meta-label">تاريخ الانتهاء</span>
+                <span class="meta-val en-num" id="meta-expires"></span>
+            </div>
+        </div>
+        
+        <div class="modal-desc" id="modal-desc"></div>
+        
+        <div class="reviews-section">
+            <h3 style="margin-top:0; color: var(--brand);">آراء الزوار والتقييمات</h3>
+            <div id="reviews-list"></div>
+            
+            <div class="add-review-box">
+                <h4 style="margin-top:0;">أضف تقييمك وتعليقك</h4>
+                <select id="rev-stars" style="padding:14px;">
+                    <option value="5">⭐⭐⭐⭐⭐ ممتاز</option>
+                    <option value="4">⭐⭐⭐⭐ جيد جداً</option>
+                    <option value="3">⭐⭐⭐ جيد</option>
+                    <option value="2">⭐⭐ مقبول</option>
+                    <option value="1">⭐ ضعيف</option>
+                </select>
+                <textarea id="rev-text" placeholder="اكتب تعليقك هنا..." style="height: 70px;"></textarea>
+                <button class="visit-btn" id="btn-submit-review">نشر التقييم باسمك</button>
+                <div id="rev-status" style="text-align:center; margin-top:8px; font-weight:bold;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- نافذة المطور -->
+<div id="dev-modal" class="modal-overlay hidden">
+    <div class="modal-content" style="text-align: center;">
+        <button class="close-btn" onclick="closeModal('dev-modal')">✕</button>
+        
+        <div id="dev-loading" style="color:var(--muted); padding:20px;">جاري تحميل بيانات المطور...</div>
+        
+        <div id="dev-content" class="hidden">
+            <img id="dev-logo" src="" style="width:100px; height:100px; border-radius:50%; object-fit:cover; border:3px solid var(--brand); margin-bottom:15px; background:var(--bg);">
+            <h2 id="dev-name" style="margin:0 0 5px 0; color:var(--brand);"></h2>
+            <div class="review-ola en-num" style="margin-bottom: 15px;" id="dev-ola"></div>
+            
+            <div class="dev-social-grid" id="dev-socials"></div>
+
+            <div style="border-top: 1px solid var(--line); margin-top: 25px; padding-top: 20px;">
+                <h3 style="margin-top:0; color:var(--ink); text-align:right;">مواقع نشرها المطور:</h3>
+                <div id="dev-apps-list" class="mini-apps-grid"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ✨ رابط النفق الآمن
+const SUPABASE_URL = "https://jazz-rapid-finance-gate.trycloudflare.com";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE"; 
+const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = id => document.getElementById(id);
+let allSites = []; 
+let currentOpenedSite = null;
+let currentUserProfile = null;
+
+const securityQuestionsList = [
+    "ما هو اسم والدك؟", "ما هو لونك المفضل؟", "ما هو اسم حيوانك الأليف الأول؟",
+    "ما هو اسم صديق طفولتك المفضل؟", "ما هي المدينة التي ولدت فيها؟",
+    "ما هو اسم حبيبتك/حبيبك الأول؟", "ما هي أكلتك المفضلة؟"
+];
+let currentSecurityQuestion = "";
+
+// 🛠️ دالة سحرية لإصلاح روابط الصور القديمة وتحويلها للنفق الآمن
+function fixImageUrl(url) {
+    if (!url) return 'https://via.placeholder.com/150/e8eaed/5f6368';
+    return url.replace('http://167.86.106.111:8000', 'https://jazz-rapid-finance-gate.trycloudflare.com');
+}
+
+// دوال تنسيق الأرقام
+function formatNumEN(num) {
+    if(!num) return "0";
+    return Number(num).toLocaleString('en-US');
+}
+function formatDateEN(dateString) {
+    if(!dateString) return "N/A";
+    const date = new Date(dateString);
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}/${mm}/${dd}`; 
+}
+
+function switchView(view) {
+    $('view-store').classList.add('hidden');
+    $('view-account').classList.add('hidden');
+    $('tab-store').classList.remove('active');
+    $('tab-account').classList.remove('active');
+    
+    $(`view-${view}`).classList.remove('hidden');
+    $(`tab-${view}`).classList.add('active');
+    
+    if(view === 'account') loadMyAccount();
+}
+
+async function initUserSession() {
+    const olaId = localStorage.getItem("ola_id");
+    if (olaId) {
+        const { data } = await client.from('profiles').select('*').eq('ola_id', olaId).maybeSingle();
+        if (data) currentUserProfile = data;
+    } else {
+        currentUserProfile = null;
+    }
+}
+
+// ---------------- وظائف الحساب (تسجيل وإنشاء) ----------------
+function showRegisterForm() {
+    $('acc-unauth').classList.add('hidden');
+    $('acc-register').classList.remove('hidden');
+    currentSecurityQuestion = securityQuestionsList[Math.floor(Math.random() * securityQuestionsList.length)];
+    $('reg-sec-q').innerText = currentSecurityQuestion;
+    $('reg-status').innerText = "";
+}
+
+function cancelRegister() {
+    $('acc-register').classList.add('hidden');
+    $('acc-unauth').classList.remove('hidden');
+}
+
+function generateOLAID(){
+    const rand = Math.floor(Math.random()*900000000)+100000000;
+    const day  = Math.floor((Date.now()/(1000*60*60*24))%365);
+    return `OLA ${rand}-${day}`;
+}
+
+async function registerAccount() {
+    const name = $('reg-name').value.trim();
+    const dob = $('reg-dob').value.trim();
+    const country = $('reg-country').value.trim();
+    const city = $('reg-city').value.trim();
+    const job = $('reg-job').value.trim();
+    const gender = $('reg-gender').value;
+    const pass = $('reg-pass').value.trim();
+    const passConf = $('reg-pass-conf').value.trim();
+    const secA = $('reg-sec-a').value.trim();
+    const status = $('reg-status');
+
+    if (!name || !dob || !country || !city || !job || !gender || !pass || !secA) {
+        return status.innerText = "⚠️ الرجاء ملء جميع الحقول بما فيها سؤال الأمان.";
+    }
+    if (pass !== passConf) {
+        return status.innerText = "⚠️ كلمتا السر غير متطابقتين.";
+    }
+
+    status.style.color = "var(--muted)";
+    status.innerText = "⏳ جارٍ إنشاء الحساب...";
+
+    const ola = generateOLAID();
+    const expires = new Date(); 
+    expires.setFullYear(expires.getFullYear() + 100); 
+
+    const { error } = await client.from("profiles").insert([{
+        full_name: name, dob_text: dob, country: country, city: city, job_title: job, gender: gender,
+        ola_id: ola, balance: 0, vip_level: 1, vip_expires_on: expires.toISOString().split("T")[0],
+        is_banned: false, password: pass,
+        security_question: currentSecurityQuestion, security_answer: secA
+    }]);
+
+    if (error) {
+        status.style.color = "var(--danger)";
+        status.innerText = "❌ حدث خطأ داخلي.";
+        return;
+    }
+
+    localStorage.setItem("ola_id", ola);
+    status.style.color = "var(--ok)";
+    status.innerText = "✅ تم الإنشاء! جاري تحويلك لحسابك...";
+    
+    setTimeout(() => { 
+        loadMyAccount(); 
+    }, 1500);
+}
+
+async function loginAccount() {
+    const olaId = $('login-ola').value.trim().toUpperCase();
+    const pass = $('login-pass').value.trim();
+    const status = $('login-status');
+    
+    if(!olaId || !pass) return status.innerText = "⚠️ يرجى إدخال البيانات";
+    
+    status.style.color = "var(--muted)";
+    status.innerText = "⏳ جاري التحقق...";
+    
+    const { data, error } = await client.from('profiles').select('*').eq('ola_id', olaId).eq('password', pass).maybeSingle();
+    
+    if(error || !data) {
+        status.style.color = "var(--danger)";
+        status.innerText = "❌ رقم OLA أو كلمة المرور غير صحيحة";
+        return;
+    }
+    
+    localStorage.setItem('ola_id', data.ola_id);
+    currentUserProfile = data;
+    status.innerText = "";
+    $('login-ola').value = '';
+    $('login-pass').value = '';
+    loadMyAccount();
+}
+
+function logoutAccount() {
+    localStorage.removeItem('ola_id');
+    currentUserProfile = null;
+    loadMyAccount();
+}
+
+async function loadMyAccount() {
+    await initUserSession();
+    
+    $('acc-unauth').classList.add('hidden');
+    $('acc-register').classList.add('hidden');
+    $('acc-auth').classList.add('hidden');
+
+    if(!currentUserProfile) {
+        $('acc-unauth').classList.remove('hidden');
+        return;
+    }
+    
+    $('acc-auth').classList.remove('hidden');
+    
+    const data = currentUserProfile;
+    $('my-name-display').innerText = data.full_name || data.name || 'مستخدم OLA';
+    $('my-ola-display').innerText = data.ola_id;
+    $('my-balance').innerText = formatNumEN(data.balance) + ' OLA';
+    
+    // استخدام دالة إصلاح الصور هنا
+    $('my-avatar').src = fixImageUrl(data.avatar_url);
+    
+    $('edit-name').value = data.full_name || data.name || '';
+    $('edit-pass').value = '';
+}
+
+async function saveProfileChanges() {
+    if(!currentUserProfile) return;
+    const newName = $('edit-name').value.trim();
+    const newPass = $('edit-pass').value.trim();
+    const status = $('edit-status');
+    
+    if(!newName) return status.innerText = "⚠️ لا يمكن ترك الاسم فارغاً";
+    
+    status.style.color = "var(--muted)";
+    status.innerText = "⏳ جاري الحفظ...";
+    
+    const updates = { full_name: newName };
+    if(newPass) updates.password = newPass;
+    
+    const { error } = await client.from('profiles').update(updates).eq('ola_id', currentUserProfile.ola_id);
+    
+    if(error) {
+        status.style.color = "var(--danger)";
+        status.innerText = "❌ حدث خطأ أثناء الحفظ";
+    } else {
+        status.style.color = "var(--ok)";
+        status.innerText = "✅ تم تحديث بياناتك بنجاح";
+        currentUserProfile.full_name = newName;
+        $('my-name-display').innerText = newName;
+        $('edit-pass').value = '';
+        setTimeout(() => status.innerText = "", 3000);
+    }
+}
+
+async function uploadMyAvatar(inputEl) {
+    if(!inputEl.files || inputEl.files.length === 0 || !currentUserProfile) return;
+    const file = inputEl.files[0];
+    const olaId = currentUserProfile.ola_id;
+    $('upload-status').innerText = "⏳ جاري رفع الصورة...";
+    
+    try {
+        const fileName = `user_${olaId}_${Date.now()}.${file.name.split('.').pop()}`;
+        const { error: upErr } = await client.storage.from('ola_apps_files').upload(fileName, file);
+        if(upErr) throw upErr;
+        
+        const { data: publicData } = client.storage.from('ola_apps_files').getPublicUrl(fileName);
+        const imgUrl = publicData.publicUrl;
+        
+        const { error: updateErr } = await client.from('profiles').update({ avatar_url: imgUrl }).eq('ola_id', olaId);
+        if(updateErr) throw updateErr;
+        
+        $('my-avatar').src = fixImageUrl(imgUrl);
+        currentUserProfile.avatar_url = imgUrl;
+        $('upload-status').innerText = "✅ تم تحديث الصورة!";
+        setTimeout(() => $('upload-status').innerText = "", 3000);
+    } catch (err) {
+        $('upload-status').innerText = "❌ خطأ أثناء الرفع";
+    }
+}
+
+// ---------------- المتجر والمواقع ----------------
+async function loadSites() {
+    await initUserSession(); 
+    const { data } = await client.from('ola_apps').select('*').order('created_at', { ascending: false });
+    $('loading-msg').classList.add('hidden');
+    if (data) { allSites = data; renderSites(allSites); }
+}
+
+window.filterSites = (category, btn) => {
+    $('search-input').value = '';
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+    renderSites(category === 'الكل' ? allSites : allSites.filter(s => s.category === category));
+};
+
+window.handleSearch = () => {
+    const query = $('search-input').value.trim().toLowerCase();
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    $('btn-cat-all').classList.add('active');
+    if (!query) { renderSites(allSites); return; }
+    const filtered = allSites.filter(site => {
+        return (site.title || '').toLowerCase().includes(query) || (site.developer || '').toLowerCase().includes(query);
+    });
+    renderSites(filtered);
+};
+
+function formatVisitsText(num) {
+    if (!num) return "0";
+    if (num < 100) return formatNumEN(num);
+    if (num < 1000) return `+${formatNumEN(Math.floor(num/100)*100)}`;
+    return `+${formatNumEN((num/1000).toFixed(1))} K`; 
+}
+
+function renderSites(sitesArray) {
+    const container = $('sites-container');
+    container.innerHTML = '';
+    container.classList.remove('hidden');
+    
+    if (sitesArray.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1 / -1;">لا توجد نتائج.</div>';
+        return;
+    }
+    
+    sitesArray.forEach(site => {
+        // استخدام دالة إصلاح الصور هنا
+        const iconSrc = fixImageUrl(site.icon_url);
+        const card = document.createElement('div');
+        card.className = 'site-item';
+        card.onclick = () => openSiteDetails(site); 
+        
+        card.innerHTML = `
+            <div class="site-header">
+                <img src="${iconSrc}" class="site-icon">
+                <div class="site-info">
+                    <h4 class="site-title">${site.title}</h4>
+                    <div class="site-dev">بواسطة: ${site.developer}</div>
+                    <div class="site-stats-row">
+                        <div class="stat-item en-num">${formatNumEN(Number(site.rating).toFixed(1))} <span style="color:var(--star)">★</span></div>
+                        <div class="stat-divider"></div>
+                        <div class="stat-item en-num" id="visit-count-${site.id}">👁️ ${formatVisitsText(site.downloads)}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="visit-btn" onclick="visitSite(event, '${site.id}', ${site.downloads}, '${site.apk_url}')">زيارة الموقع</button>
+            
+            <div class="url-box-card" onclick="event.stopPropagation()">
+                <button class="url-copy-btn-small" onclick="copyDirectUrl('${site.apk_url}')">نسخ</button>
+                <div class="url-text-small en-num">${site.apk_url || 'N/A'}</div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function openSiteDetails(site) {
+    closeModal('dev-modal'); 
+    currentOpenedSite = site;
+    
+    // استخدام دالة إصلاح الصور هنا
+    $('modal-icon').src = fixImageUrl(site.icon_url);
+    
+    $('modal-title').innerText = site.title;
+    $('modal-dev').innerText = site.developer; 
+    $('modal-rating').innerText = formatNumEN(Number(site.rating).toFixed(1));
+    $('modal-visits').innerText = "👁️ " + formatVisitsText(site.downloads);
+    $('modal-desc').innerText = site.description || "لا يوجد وصف.";
+    
+    $('meta-serial').innerText = site.app_serial || site.id.substring(0,6).toUpperCase();
+    $('meta-created').innerText = formatDateEN(site.created_at);
+    
+    const expiresAt = new Date(site.expires_at || new Date());
+    const isExpired = expiresAt < new Date();
+    $('meta-expires').innerText = formatDateEN(site.expires_at);
+    $('meta-status').innerHTML = isExpired ? '<span style="color:var(--danger)">منتهي</span>' : '<span style="color:var(--ok)">فعال</span>';
+    
+    $('modal-visit-btn').onclick = () => visitSite(null, site.id, site.downloads, site.apk_url);
+    $('btn-submit-review').onclick = submitReview;
+    
+    $('site-modal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden'; 
+    loadReviews(site.id);
+}
+
+function closeModal(modalId) {
+    $(modalId).classList.add('hidden');
+    if(modalId === 'site-modal' && $('dev-modal').classList.contains('hidden')) {
+        document.body.style.overflow = 'auto'; 
+    }
+}
+
+// ---------------- نافذة المطور ----------------
+window.openDevProfile = async () => {
+    if(!currentOpenedSite || !currentOpenedSite.developer_id) return;
+    
+    $('dev-modal').classList.remove('hidden');
+    $('dev-loading').classList.remove('hidden');
+    $('dev-content').classList.add('hidden');
+    
+    const { data: devData } = await client.from('ola_developers').select('*').eq('dev_id', currentOpenedSite.developer_id).maybeSingle();
+    const { data: devApps } = await client.from('ola_apps').select('*').eq('developer_id', currentOpenedSite.developer_id);
+    
+    $('dev-loading').classList.add('hidden');
+    
+    if(devData) {
+        $('dev-content').classList.remove('hidden');
+        
+        // استخدام دالة إصلاح الصور هنا
+        $('dev-logo').src = fixImageUrl(devData.logo_url);
+        
+        $('dev-name').innerText = devData.dev_name || 'مطور غير معروف';
+        $('dev-ola').innerText = devData.ola_id || 'N/A';
+        
+        const socials = $('dev-socials');
+        socials.innerHTML = '';
+        const addBtn = (link, text, color) => {
+            if(link && link.trim() !== '') {
+                socials.innerHTML += `<a href="${link}" target="_blank" class="social-btn" style="background:${color};">${text}</a>`;
+            }
+        };
+        if(devData.whatsapp && devData.whatsapp.trim() !== '') {
+            let wa = devData.whatsapp.replace(/[^0-9]/g, '');
+            socials.innerHTML += `<a href="https://wa.me/${wa}" target="_blank" class="social-btn" style="background:#25D366;">WhatsApp</a>`;
+        }
+        addBtn(devData.facebook, "Facebook", "#1877F2");
+        addBtn(devData.instagram, "Instagram", "#E4405F");
+        addBtn(devData.tiktok, "TikTok", "#000000");
+        addBtn(devData.youtube, "YouTube", "#FF0000");
+        addBtn(devData.telegram, "Telegram", "#0088cc");
+        addBtn(devData.twitter, "X", "#1DA1F2");
+        addBtn(devData.website, "Website", "var(--brand)");
+
+        const appsList = $('dev-apps-list');
+        appsList.innerHTML = '';
+        if(devApps && devApps.length > 0) {
+            devApps.forEach(app => {
+                // استخدام دالة إصلاح الصور هنا
+                const icon = fixImageUrl(app.icon_url);
+                appsList.innerHTML += `
+                    <div class="mini-app-card" onclick='openSiteDetails(${JSON.stringify(app).replace(/'/g, "'")})'>
+                        <img src="${icon}" class="mini-app-icon">
+                        <div style="flex:1;">
+                            <div style="font-weight:bold; color:var(--brand);">${app.title}</div>
+                            <div style="font-size:12px; color:var(--muted);" class="en-num">⭐ ${formatNumEN(Number(app.rating).toFixed(1))}</div>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            appsList.innerHTML = '<div style="color:var(--muted); font-size:13px; text-align:center;">لا توجد مواقع أخرى.</div>';
+        }
+    } else {
+        $('dev-loading').classList.remove('hidden');
+        $('dev-loading').innerText = "❌ لم يتم العثور على بيانات المطور.";
+    }
+};
+
+window.copyDirectUrl = (url) => {
+    if(url) navigator.clipboard.writeText(url).then(() => alert("✅ تم نسخ الرابط بنجاح!"));
+};
+
+window.visitSite = async (event, id, currentVisits, url) => {
+    if(event) event.stopPropagation();
+    const newCount = currentVisits + 1;
+    const countEl = $(`visit-count-${id}`);
+    if(countEl) countEl.innerText = "👁️ " + formatVisitsText(newCount);
+    if($('modal-visits')) $('modal-visits').innerText = "👁️ " + formatVisitsText(newCount);
+    
+    const siteIndex = allSites.findIndex(s => s.id === id);
+    if(siteIndex > -1) allSites[siteIndex].downloads = newCount;
+    
+    await client.from('ola_apps').update({ downloads: newCount }).eq('id', id);
+    window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+/* --- التحديث الذكي لجلب التعليقات وردود المطور --- */
+async function loadReviews(id) {
+    const list = $('reviews-list');
+    list.innerHTML = '<div style="color:var(--muted); font-size:13px; text-align:center;">جاري تحميل التعليقات...</div>';
+    
+    // 1. جلب التقييمات الأساسية من المتجر
+    const { data: revs } = await client.from('ola_app_reviews').select('*').eq('app_id', id).order('created_at', { ascending: false });
+    
+    if (!revs || revs.length === 0) {
+        list.innerHTML = '<div style="color:var(--muted); font-size:13px; text-align:center; padding:10px 0;">لا توجد تعليقات حتى الآن. كن أول من يقيّم!</div>';
+        return;
+    }
+
+    // 2. جلب ردود المطور الذكية من مركز المطورين
+    let devComments = [];
+    if (currentOpenedSite && currentOpenedSite.developer_id) {
+        const { data: dc } = await client.from('ola_comments')
+            .select('user_id, comment, dev_reply')
+            .eq('developer_id', currentOpenedSite.developer_id)
+            .eq('app_title', currentOpenedSite.title);
+        if (dc) devComments = dc;
+    }
+
+    const uniqueOlas = [...new Set(revs.map(r => r.user_ola).filter(Boolean))];
+    let avatarsMap = {};
+    if(uniqueOlas.length > 0) {
+        const { data: profs } = await client.from('profiles').select('ola_id, avatar_url').in('ola_id', uniqueOlas);
+        if(profs) profs.forEach(p => avatarsMap[p.ola_id] = p.avatar_url);
+    }
+    
+    list.innerHTML = '';
+    
+    for (const rev of revs) {
+        // استخدام دالة إصلاح الصور هنا
+        const userImg = fixImageUrl(avatarsMap[rev.user_ola]);
+        
+        // البحث عن رد المطور الذي يطابق تعليق المستخدم بدقة
+        let devReplyHtml = '';
+        const matchedReply = devComments.find(c => c.user_id === rev.user_ola && c.comment === rev.comment && c.dev_reply);
+        
+        if (matchedReply) {
+            devReplyHtml = `
+                <div class="dev-reply-container">
+                    <div class="dev-reply-title"><span>👑</span> رد المطور (${currentOpenedSite.developer})</div>
+                    <div class="dev-reply-text">${matchedReply.dev_reply}</div>
+                </div>
+            `;
+        }
+        
+        list.innerHTML += `
+            <div class="review-item">
+                <div class="review-header">
+                    <div class="review-user-info">
+                        <div class="review-user-top">
+                            <img src="${userImg}" class="review-avatar">
+                            <span class="review-name">${rev.user_name || 'مستخدم OLA'}</span>
+                        </div>
+                        ${rev.user_ola ? `<span class="review-ola en-num">${rev.user_ola}</span>` : ''}
+                    </div>
+                    <span style="flex-shrink:0;">${'⭐'.repeat(rev.rating)}</span>
+                </div>
+                <div class="review-text">${rev.comment || ''}</div>
+                ${devReplyHtml}
+            </div>
+        `;
+    }
+}
+
+async function submitReview() {
+    if (!currentOpenedSite) return;
+    const status = $('rev-status');
+    
+    if(!currentUserProfile) {
+        status.style.color = "var(--danger)";
+        status.innerText = "⚠️ يجب تسجيل الدخول من تبويب (حسابي) أولاً";
+        return;
+    }
+
+    const myOla = currentUserProfile.ola_id;
+    const myName = currentUserProfile.full_name || currentUserProfile.name || 'مستخدم OLA';
+    
+    const stars = parseInt($('rev-stars').value);
+    const comment = $('rev-text').value.trim();
+    
+    if(!comment) {
+        status.style.color = "var(--danger)";
+        status.innerText = "⚠️ يرجى كتابة تعليق.";
+        return;
+    }
+
+    status.style.color = "var(--muted)";
+    status.innerText = "⏳ جاري النشر...";
+    $('btn-submit-review').disabled = true;
+    
+    // 1- إرسال التعليق لجدول تقييمات المتجر 
+    const { error: reviewErr } = await client.from('ola_app_reviews').insert([{ 
+        app_id: currentOpenedSite.id, 
+        user_name: myName, 
+        user_ola: myOla,
+        rating: stars, 
+        comment 
+    }]);
+    
+    if (reviewErr) {
+        status.style.color = "var(--danger)";
+        status.innerText = "❌ حدث خطأ أثناء النشر.";
+        $('btn-submit-review').disabled = false;
+        return;
+    }
+
+    // 2- إرسال نسخة مطابقة فورية لجدول مركز المطورين ليتمكن المطور من الرد عليها
+    await client.from('ola_comments').insert([{
+        developer_id: currentOpenedSite.developer_id,
+        app_title: currentOpenedSite.title,
+        user_name: myName,
+        user_id: myOla,
+        comment: comment
+    }]);
+    
+    // تحديث المتوسط الحسابي للتقييم
+    const { data: allRevs } = await client.from('ola_app_reviews').select('rating').eq('app_id', currentOpenedSite.id);
+    if(allRevs && allRevs.length > 0) {
+        const newAvg = (allRevs.reduce((sum, r) => sum + r.rating, 0) / allRevs.length).toFixed(1);
+        await client.from('ola_apps').update({ rating: newAvg }).eq('id', currentOpenedSite.id);
+        
+        $('modal-rating').innerText = formatNumEN(newAvg);
+        const siteIndex = allSites.findIndex(s => s.id === currentOpenedSite.id);
+        if(siteIndex > -1) allSites[siteIndex].rating = newAvg;
+        renderSites(allSites);
+    }
+
+    status.style.color = "var(--ok)";
+    status.innerText = "✅ تم النشر وإرساله للمطور بنجاح!";
+    $('rev-text').value = '';
+    $('btn-submit-review').disabled = false;
+    
+    loadReviews(currentOpenedSite.id);
+    setTimeout(() => status.innerText = '', 3000);
+}
+
+window.onload = loadSites;
+</script>
+</body>
+</html>
